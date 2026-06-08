@@ -6,3 +6,5 @@ This project uses the **Anti Money Laundering Transaction Data** (`SAML-D.csv`) 
 2. Download the `SAML-D.csv` file (approx. 996 MB).
 3. Create a folder named `data/` in the root directory of this project.
 4. Place the downloaded `SAML-D.csv` file inside the `data/` folder.
+5. the intial rule based filltering genrate it's own synthetic data
+6. 
