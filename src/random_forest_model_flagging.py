@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+from sklearn.ensemble import IsolationForest
+
+
+class AMLRiskWrapper:
+    def __init__(self, contamination=0.01, random_state=42):
+        """
+        Initializes the wrapper with the core scikit-learn Isolation Forest.
+        """
+        self.model = IsolationForest(
+            n_estimators=200,
+            contamination=contamination,
+            random_state=random_state,
+        )
+        self.normal_medians = None
+        self.feature_names = None
+
+    def fit(self, X):
+        """
+        Fits the model and calculates the median values of 'normal' data
+        to use later for explainability.
+        """
+        self.feature_names = X.columns.tolist()
+        self.model.fit(X)
+
+        predictions = self.model.predict(X)
+        normal_data = X[predictions == 1]
+        self.normal_medians = normal_data.median()
+
+        return self
+
+    def predict_risk_tiers(self, X):
+        """
+        Generates raw scores, assigns risk tiers, and extracts reason codes.
+        """
+        raw_scores = self.model.decision_function(X)
+        high_alert_threshold = np.percentile(raw_scores, 1)
+        monitor_threshold = np.percentile(raw_scores, 5)
+
+        results = pd.DataFrame({"raw_anomaly_score": raw_scores}, index=X.index)
+
+        conditions = [
+            results["raw_anomaly_score"] <= high_alert_threshold,
+            (results["raw_anomaly_score"] <= monitor_threshold)
+            & (results["raw_anomaly_score"] > high_alert_threshold),
+        ]
+        choices = ["High Alert", "Monitor"]
+        results["business_risk_tier"] = np.select(conditions, choices, default="Low Risk")
+
+        results["primary_reason"] = "N/A"
+
+        anomalies_idx = results[results["business_risk_tier"] != "Low Risk"].index
+
+        for idx in anomalies_idx:
+            transaction_features = X.loc[idx]
+
+            epsilon = 1e-9
+            deviations = abs(transaction_features - self.normal_medians) / (
+                self.normal_medians + epsilon
+            )
+
+            top_feature = deviations.idxmax()
+            results.at[idx, "primary_reason"] = f"Abnormal {top_feature}"
+
+        return results
