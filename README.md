@@ -19,6 +19,12 @@ From the repository root, run the final pipeline entry point:
 python src/final_flagging.py
 ```
 
+Or run the main entrypoint directly from the repository root:
+
+```bash
+python src/main.py
+```
+
 This runs the full chain end to end:
 
 1. Synthetic transaction generation in `src/intial_rule_filltering.py`.
